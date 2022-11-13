@@ -22,110 +22,159 @@
 using namespace cv;
 using namespace LibSeek;
 
+enum WindowPropertyFlags
+{
+    WND_PROP_FULLSCREEN = 0,
+    WND_PROP_AUTOSIZE = 1,
+    WND_PROP_ASPECT_RATIO = 2,
+    WND_PROP_OPENGL = 3,
+    WND_PROP_VISIBLE = 4,
+};
+
+enum WindowFlags
+{
+    WINDOW_AUTOSIZE = 0x00000001,
+    WINDOW_OPENGL = 0x00001000,
+    WINDOW_FULLSCREEN = 1,
+    WINDOW_FREERATIO = 0x00000100,
+    WINDOW_KEEPRATIO = 0x00000000,
+    WINDOW_GUI_EXPANDED = 0x00000000,
+    WINDOW_GUI_NORMAL = 0x00000010
+};
+
 const std::string WINDOW_NAME = "SeekThermal";
 
 // Setup sig handling
 static volatile sig_atomic_t sigflag = 0;
 
-
 bool auto_exposure_lock = false;
 
-void handle_sig(int sig) {
+void handle_sig(int sig)
+{
     (void)sig;
     sigflag = 1;
 }
 
-
-// Normalize the image so that it uses the full color space available for display. 
-void normalize(Mat &inframe) {
-    static double min =-1, max = -1;
+// Normalize the image so that it uses the full color space available for display.
+void normalize(Mat &inframe)
+{
+    static double min = -1, max = -1;
     static float multiplier = -1;
 
-    if (auto_exposure_lock) {
-        if (min == -1) {
+    if (auto_exposure_lock)
+    {
+        if (min == -1)
+        {
             cv::minMaxLoc(inframe, &min, &max);
             multiplier = 65535 / (max - min);
         }
-        for (int y = 0; y < inframe.rows; y++) {
-            for (int x = 0; x < inframe.cols; x++) {
+        for (int y = 0; y < inframe.rows; y++)
+        {
+            for (int x = 0; x < inframe.cols; x++)
+            {
                 uint16_t val = inframe.at<uint16_t>(y, x);
-                if (val > max) {
+                if (val > max)
+                {
                     val = 65535;
-                } else if (val < min) {
+                }
+                else if (val < min)
+                {
                     val = 0;
-                } else {
+                }
+                else
+                {
                     val = (val - min) * multiplier;
                 }
                 inframe.at<uint16_t>(y, x) = val;
             }
         }
-    } else {
+    }
+    else
+    {
         normalize(inframe, inframe, 0, 65535, NORM_MINMAX);
         min = -1;
     }
 }
 
 // Function to process a raw (corrected) seek frame
-void process_frame(Mat &inframe, Mat &outframe, float scale, int colormap, int rotate) {
+void process_frame(Mat &inframe, Mat &outframe, float scale, int colormap, int rotate)
+{
     Mat frame_g8; // Transient Mat containers for processing
 
     normalize(inframe);
 
     // Convert seek CV_16UC1 to CV_8UC1
-    inframe.convertTo(frame_g8, CV_8UC1, 1.0/256.0 );
+    inframe.convertTo(frame_g8, CV_8UC1, 1.0 / 256.0);
 
     // Rotate image
-    if (rotate == 90) {
+    if (rotate == 90)
+    {
         transpose(frame_g8, frame_g8);
         flip(frame_g8, frame_g8, 1);
-    } else if (rotate == 180) {
+    }
+    else if (rotate == 180)
+    {
         flip(frame_g8, frame_g8, -1);
-    } else if (rotate == 270) {
+    }
+    else if (rotate == 270)
+    {
         transpose(frame_g8, frame_g8);
         flip(frame_g8, frame_g8, 0);
     }
 
     // Resize image: http://docs.opencv.org/3.2.0/da/d54/group__imgproc__transform.html#ga5bb5a1fea74ea38e1a5445ca803ff121
     // Note this is expensive computationally, only do if option set != 1
-    if (scale != 1.0) {
+    if (scale != 1.0)
+    {
         resize(frame_g8, frame_g8, Size(), scale, scale, INTER_LINEAR);
     }
 
     // Apply colormap: http://docs.opencv.org/3.2.0/d3/d50/group__imgproc__colormap.html#ga9a805d8262bcbe273f16be9ea2055a65
-    if (colormap != -1) {
+    if (colormap != -1)
+    {
         applyColorMap(frame_g8, outframe, colormap);
-    } else {
+    }
+    else
+    {
         cv::cvtColor(frame_g8, outframe, cv::COLOR_GRAY2BGR);
     }
 }
 
-void key_handler(char scancode) {
-    switch (scancode) {
-        case 'f': {
-            int windowFlag = getWindowProperty(WINDOW_NAME, WindowPropertyFlags::WND_PROP_FULLSCREEN) == cv::WINDOW_FULLSCREEN ? cv::WINDOW_NORMAL : cv::WINDOW_FULLSCREEN;
-            setWindowProperty(WINDOW_NAME, WindowPropertyFlags::WND_PROP_FULLSCREEN, windowFlag);
-            break;
-        }
-        case 's': {
-            waitKey(0);
-            break;
-        }
-        case 'a': {
-            auto_exposure_lock = !auto_exposure_lock;
-            std::cout << "AEL:" << auto_exposure_lock << std::endl;
-            break;
-        }
-        case 'q': {
-            sigflag = SIGINT;
-        }
+void key_handler(char scancode)
+{
+    switch (scancode)
+    {
+    case 'f':
+    {
+        int windowFlag = getWindowProperty(WINDOW_NAME, WindowPropertyFlags::WND_PROP_FULLSCREEN) == WINDOW_FULLSCREEN ? WINDOW_NORMAL : WINDOW_FULLSCREEN;
+        setWindowProperty(WINDOW_NAME, WindowPropertyFlags::WND_PROP_FULLSCREEN, windowFlag);
+        break;
+    }
+    case 's':
+    {
+        waitKey(0);
+        break;
+    }
+    case 'a':
+    {
+        auto_exposure_lock = !auto_exposure_lock;
+        std::cout << "AEL:" << auto_exposure_lock << std::endl;
+        break;
+    }
+    case 'q':
+    {
+        sigflag = SIGINT;
+    }
     }
 }
 
 #ifdef __linux__
 // Function to setup output to a v4l2 device
-int setup_v4l2(std::string output, int width,int height) {
-    int v4l2 = open(output.c_str(), O_RDWR); 
-    if(v4l2 < 0) {
+int setup_v4l2(std::string output, int width, int height)
+{
+    int v4l2 = open(output.c_str(), O_RDWR);
+    if (v4l2 < 0)
+    {
         std::cout << "Error opening v4l2 device: " << strerror(errno) << std::endl;
         exit(1);
     }
@@ -134,18 +183,20 @@ int setup_v4l2(std::string output, int width,int height) {
     int t;
     v.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
     t = ioctl(v4l2, VIDIOC_G_FMT, &v);
-    if( t < 0 ) {
+    if (t < 0)
+    {
         std::cout << "VIDIOC_G_FMT error: " << strerror(errno) << std::endl;
         exit(t);
     }
-    
+
     v.fmt.pix.width = width;
     v.fmt.pix.height = height;
     // BGR is not widely supported in v4l2 clients
     v.fmt.pix.pixelformat = V4L2_PIX_FMT_RGB24;
     v.fmt.pix.sizeimage = width * height * 3;
     t = ioctl(v4l2, VIDIOC_S_FMT, &v);
-    if( t < 0 ) {
+    if (t < 0)
+    {
         std::cout << "VIDIOC_S_FMT error: " << strerror(errno) << std::endl;
         exit(t);
     }
@@ -154,28 +205,31 @@ int setup_v4l2(std::string output, int width,int height) {
     return v4l2;
 }
 
-void v4l2_out(int v4l2, Mat& outframe) {
+void v4l2_out(int v4l2, Mat &outframe)
+{
     // Second colorspace conversion done here as applyColorMap only produces BGR. Do it in place.
     cvtColor(outframe, outframe, COLOR_BGR2RGB);
     int framesize = outframe.total() * outframe.elemSize();
     int written = write(v4l2, outframe.data, framesize);
-    if (written < 0) {
+    if (written < 0)
+    {
         std::cout << "Error writing v4l2 device" << std::endl;
         close(v4l2);
         exit(1);
     }
 }
 #else
-int setup_v4l2(std::string output, int width, int height) {
+int setup_v4l2(std::string output, int width, int height)
+{
     std::cout << "v4l2 is not supported on this platform" << std::endl;
     exit(1);
-    return -1; 
+    return -1;
 }
-void v4l2_out(int v4l2, Mat& outframe) {}
+void v4l2_out(int v4l2, Mat &outframe) {}
 #endif // __linux__
 
-
-int main(int argc, char** argv) {
+int main(int argc, char **argv)
+{
     // Setup arguments for parser
     args::ArgumentParser parser("Seek Thermal Viewer");
     args::HelpFlag help(parser, "help", "Display this help menu", {'h', "help"});
@@ -184,29 +238,33 @@ int main(int argc, char** argv) {
     args::ValueFlag<std::string> _ffc(parser, "FFC", "Additional Flat Field calibration - provide ffc file", {'F', "FFC"});
     args::ValueFlag<int> _fps(parser, "fps", "Video Output FPS - Kludge factor", {'f', "fps"});
     args::ValueFlag<float> _scale(parser, "scaling", "Output Scaling - multiple of original image", {'s', "scale"});
-    args::ValueFlag<int> _colormap(parser, "colormap", "Color Map - number between 0 and 21 (see: cv::ColormapTypes for maps available in your version of OpenCV)", { 'c', "colormap" });
+    args::ValueFlag<int> _colormap(parser, "colormap", "Color Map - number between 0 and 21 (see: cv::ColormapTypes for maps available in your version of OpenCV)", {'c', "colormap"});
     args::ValueFlag<int> _rotate(parser, "rotate", "Rotation - 0, 90, 180 or 270 (default) degrees", {'r', "rotate"});
     args::ValueFlag<std::string> _camtype(parser, "camtype", "Seek Thermal Camera Model - seek or seekpro", {'t', "camtype"});
 
     // Parse arguments
-    try {
+    try
+    {
         parser.ParseCLI(argc, argv);
     }
-    catch (args::Help) {
+    catch (args::Help)
+    {
         std::cout << parser;
         return 0;
     }
-    catch (args::ParseError e) {
+    catch (args::ParseError e)
+    {
         std::cerr << e.what() << std::endl;
         std::cerr << parser;
         return 1;
     }
-    catch (args::ValidationError e) {
+    catch (args::ValidationError e)
+    {
         std::cerr << e.what() << std::endl;
         std::cerr << parser;
         return 1;
     }
-    
+
     float scale = 1.0;
     if (_scale)
         scale = args::get(_scale);
@@ -239,11 +297,15 @@ int main(int argc, char** argv) {
     if (_output)
         output = args::get(_output);
 
-    if (output.empty()) {
-        if (mode == "v4l2") {
+    if (output.empty())
+    {
+        if (mode == "v4l2")
+        {
             std::cout << "Please specify a video device to output to eg: /dev/video0" << std::endl;
             return 1;
-        } else if (mode == "file") {
+        }
+        else if (mode == "file")
+        {
             std::cout << "Please specify a file to save the output to eg: seek.mp4" << std::endl;
             return 1;
         }
@@ -254,16 +316,20 @@ int main(int argc, char** argv) {
     signal(SIGTERM, handle_sig);
 
     // Setup seek camera
-    LibSeek::SeekCam* seek;
+    LibSeek::SeekCam *seek;
     LibSeek::SeekThermalPro seekpro(args::get(_ffc));
     LibSeek::SeekThermal seekclassic(args::get(_ffc));
-    if (camtype == "seekpro") {
+    if (camtype == "seekpro")
+    {
         seek = &seekpro;
-    } else {
+    }
+    else
+    {
         seek = &seekclassic;
     }
 
-    if (!seek->open()) {
+    if (!seek->open())
+    {
         std::cout << "Error accessing camera" << std::endl;
         return 1;
     }
@@ -273,7 +339,8 @@ int main(int argc, char** argv) {
 
     // Retrieve a single frame, resize to requested scaling value and then determine size of matrix
     //  so we can size the VideoWriter stream correctly
-    if (!seek->read(seekframe)) {
+    if (!seek->read(seekframe))
+    {
         std::cout << "Failed to read initial frame from camera, exiting" << std::endl;
         return 1;
     }
@@ -282,36 +349,43 @@ int main(int argc, char** argv) {
 
     // Setup video for linux if that output is chosen
     int v4l2 = -1;
-    if (mode == "v4l2") {
-        v4l2 = setup_v4l2(output, outframe.size().width,outframe.size().height);
+    if (mode == "v4l2")
+    {
+        v4l2 = setup_v4l2(output, outframe.size().width, outframe.size().height);
     }
 
     // Create an output object, if mode specified then setup the pipeline unless mode is set to 'window'
     VideoWriter writer;
-    if (mode == "file") {
+    if (mode == "file")
+    {
 #if CV_MAJOR_VERSION > 2
         writer.open(output, VideoWriter::fourcc('F', 'M', 'P', '4'), fps, Size(outframe.cols, outframe.rows));
-#else  
+#else
         writer.open(output, CV_FOURCC('F', 'M', 'P', '4'), fps, Size(outframe.cols, outframe.rows));
 #endif
-        if (!writer.isOpened()) {
+        if (!writer.isOpened())
+        {
             std::cerr << "Error can't create video writer" << std::endl;
             return 1;
         }
 
         std::cout << "Video stream created, dimension: " << outframe.cols << "x" << outframe.rows << ", fps:" << fps << std::endl;
-    } else if (mode == "window") {
-        namedWindow(WINDOW_NAME, cv::WINDOW_NORMAL);
-        setWindowProperty(WINDOW_NAME, WindowPropertyFlags::WND_PROP_ASPECT_RATIO, cv::WINDOW_KEEPRATIO);
-        resizeWindow(WINDOW_NAME, outframe.cols, outframe.rows);
+    }
+    else if (mode == "window")
+    {
+        namedWindow(WINDOW_NAME, WINDOW_NORMAL);
+        setWindowProperty(WINDOW_NAME, WindowPropertyFlags::WND_PROP_ASPECT_RATIO, WINDOW_KEEPRATIO);
+        //        resizeWindow(WINDOW_NAME, outframe.cols, outframe.rows);
+        setWindowProperty(WINDOW_NAME, WindowPropertyFlags::WND_PROP_FULLSCREEN, WINDOW_FULLSCREEN);
     }
 
-
     // Main loop to retrieve frames from camera and write them out
-    while (!sigflag) {
+    while (!sigflag)
+    {
 
         // If signal for interrupt/termination was received, break out of main loop and exit
-        if (!seek->read(seekframe)) {
+        if (!seek->read(seekframe))
+        {
             std::cout << "Failed to read frame from camera, exiting" << std::endl;
             return 1;
         }
@@ -319,22 +393,27 @@ int main(int argc, char** argv) {
         // Retrieve frame from seek and process
         process_frame(seekframe, outframe, scale, colormap, rotate);
 
-        if (mode == "v4l2") {
+        if (mode == "v4l2")
+        {
             v4l2_out(v4l2, outframe);
-        } else if (mode == "window") {
+        }
+        else if (mode == "window")
+        {
             imshow(WINDOW_NAME, outframe);
             char c = waitKey(10);
             key_handler(c);
 
             // If the window is closed by the user all window properties will return -1 and we should terminate
-            if (getWindowProperty(WINDOW_NAME, WindowPropertyFlags::WND_PROP_FULLSCREEN) == -1) {
+            if (getWindowProperty(WINDOW_NAME, WindowPropertyFlags::WND_PROP_FULLSCREEN) == -1)
+            {
                 std::cout << "Window closed, exiting" << std::endl;
                 return 0;
             }
-        } else {
+        }
+        else
+        {
             writer << outframe;
         }
-
     }
 
     std::cout << "Break signal detected, exiting" << std::endl;
