@@ -7,30 +7,31 @@
 libseek-thermal is a user space driver for the SEEK thermal camera series built on libusb and libopencv.
 
 Supported cameras:
-* [Seek Thermal Compact](http://www.thermal.com/products/compact)
-* [Seek Thermal CompactXR](http://www.thermal.com/products/compactxr)
-* [Seek Thermal CompactPRO](http://www.thermal.com/products/compactpro)
+
+- [Seek Thermal Compact](http://www.thermal.com/products/compact)
+- [Seek Thermal CompactXR](http://www.thermal.com/products/compactxr)
+- [Seek Thermal CompactPRO](http://www.thermal.com/products/compactpro)
 
 Seek Thermal CompactPRO example:
 
 ![Alt text](/doc/colormap_hot.png?raw=true "Colormap seek thermal pro")
 
-
 **NOTE: The library does not support absolute temperature readings since we don't know how. Any pull requests to fix this are welcome!**
-
 
 ## Credits
 
 The code is based on ideas from the following repo's:
-* https://github.com/BjornVT/Masterproef.git
-* https://github.com/zougloub/libseek
+
+- https://github.com/BjornVT/Masterproef.git
+- https://github.com/zougloub/libseek
 
 ## Build
 
 Dependencies:
-* cmake
-* libopencv-dev (>= 2.4)
-* libusb-1.0-0-dev
+
+- cmake
+- libopencv-dev (>= 2.4)
+- libusb-1.0-0-dev
 
 NOTE: you can just 'apt-get install' all libs above
 
@@ -60,15 +61,17 @@ cmake-gui ../
 This library and example programs can be built on Windows with multiple versions of Microsoft Visual Studio. This is most readily done with Visual Studio 2015 or newer, as dependancy binaries for Windows are available from the official projects, as described below.
 
 libusb is required, and Windows binaries are available from the [offical libusb project](https://libusb.info/).
-* Download the latest binary release (files ending in `.7z`) from [libusb GitHub Releases](https://github.com/libusb/libusb/releases)
-* Extract the archive
-* If using libusb-1.0.24 or greater you will need to copy the contents (`MS64` & `MS32`) of the `VS201X` directory approriate for your version of visual studio up into the root `libusb-1.0.X` directory.
-* Set `LIBUSB_DIR` to the extracted directory (e.g., `C:\local\libusb-1.0.23`)
+
+- Download the latest binary release (files ending in `.7z`) from [libusb GitHub Releases](https://github.com/libusb/libusb/releases)
+- Extract the archive
+- If using libusb-1.0.24 or greater you will need to copy the contents (`MS64` & `MS32`) of the `VS201X` directory approriate for your version of visual studio up into the root `libusb-1.0.X` directory.
+- Set `LIBUSB_DIR` to the extracted directory (e.g., `C:\local\libusb-1.0.23`)
 
 OpenCV is required, and Windows binaries are available from the [official OpenCV project](https://opencv.org/).
-* Download one of the Windows releases from the [OpenCV releases page](https://opencv.org/releases/) (3.x and 4.x work)
-* Run the self-extracting archive
-* Set `OpenCV_DIR` to the build directory containing `OpenCVConfig.cmake` (e.g., `C:\local\opencv-3.4.10\build`)
+
+- Download one of the Windows releases from the [OpenCV releases page](https://opencv.org/releases/) (3.x and 4.x work)
+- Run the self-extracting archive
+- Set `OpenCV_DIR` to the build directory containing `OpenCVConfig.cmake` (e.g., `C:\local\opencv-3.4.10\build`)
 
 Consider setting the `CMAKE_INSTALL_PREFIX` to a location in your build directory. Then after running the INSTALL target, copy the libusb and OpenCV libraries (e.g., `libusb-1.0.dll` and `opencv_world430.dll`) to the `bin\` directory containing `seek_test.exe`.
 
@@ -85,8 +88,9 @@ SUBSYSTEM=="usb", ATTRS{idVendor}=="289d", ATTRS{idProduct}=="XXXX", MODE="0666"
 ```
 
 Replace 'XXXX' with:
-* 0010: Seek Thermal Compact/CompactXR
-* 0011: Seek Thermal CompactPRO
+
+- 0010: Seek Thermal Compact/CompactXR
+- 0011: Seek Thermal CompactPRO
 
 or manually chmod the device file after plugging the usb cable:
 
@@ -114,6 +118,7 @@ seek_viewer
 ```
 
 ### seek_viewer
+
 seek_viewer is bare bones UI for the seek thermal devices. It can display video on screen, record it to a file, or stream it to a v4l2 loopback device for integration with image processing pipelines. It supports image rotation, scaling, and color mapping using any of the OpenCV color maps. While running `f` will set the display output full screen and `s` will freezeframe.
 
 ```
@@ -123,17 +128,19 @@ seek_viewer --camtype=seekpro --colormap=11 --mode=v4l2 --output=/dev/video0    
 ```
 
 ### seek_snapshot
-seek_snapshot takes still images. This is useful for intergrating into shell scripts. It supports rotation and color mapping in the same manner as seek_viewer. Run with --help for all options.
 
+seek_snapshot takes still images. This is useful for intergrating into shell scripts. It supports rotation and color mapping in the same manner as seek_viewer. Run with --help for all options.
 
 ## Linking the library to another program
 
 After you installed the library you can compile your own programs/libs with:
+
 ```
 g++ my_program.cpp -o my_program -lseek `pkg-config opencv --libs`
 ```
 
 Using the following include:
+
 ```
 #include <seek/seek.h>
 ```
@@ -145,13 +152,15 @@ This will cancel out the 'white glow' in the corners and reduces spacial noise.
 The disadvantage is that this calibration is temperature sensitive and should only be applied
 when the camera has warmed up. Note that you might need to redo the procedure over time. Result of calibration on the Thermal Compact pro:
 
-Without additional flat field calibration | With additional flat field calibration
-------------------------------------------|---------------------------------------
-![Alt text](/doc/not_ffc_calibrated.png?raw=true "Without additional flat field calibration") | ![Alt text](/doc/ffc_calibrated.png?raw=true "With additional flat field calibration")
+| Without additional flat field calibration                                                     | With additional flat field calibration                                                 |
+| --------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| ![Alt text](/doc/not_ffc_calibrated.png?raw=true "Without additional flat field calibration") | ![Alt text](/doc/ffc_calibrated.png?raw=true "With additional flat field calibration") |
 
 Procedure:
-1) Cover the lens of your camera with an object of uniform temperature
-2) Run:
+
+1. Cover the lens of your camera with an object of uniform temperature
+2. Run:
+
 ```
 # when using the Seek Thermal compact
 seek_create_flat_field -tseek
@@ -159,9 +168,10 @@ seek_create_flat_field -tseek
 # When using the Seek Thermal compact pro
 seek_create_flat_field -tseekpro
 ```
+
 The program will run for a few seconds and produces a flat_field.png file.
 
-3) Provide the produced .png file to one of the test programs:
+3. Provide the produced .png file to one of the test programs:
 
 ```
 # when using the Seek Thermal compact
@@ -171,4 +181,10 @@ seek_viewer -t seek -F flat_field.png
 # When using the Seek Thermal compact pro
 seek_test_pro flat_field.png
 seek_viewer -t seekpro -F flat_field.png
+```
+
+## Autostart script
+
+```
+/usr/local/bin/seek_viewer -t seekpro -f 15 -F /home/orangepi/flat_field.png -c 11
 ```
